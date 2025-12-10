@@ -1,13 +1,11 @@
 name: Continuous Integration Checks
 
-# 1. Wanneer de workflow moet draaien (Trigger)
 on:
   push:
     branches: [ main ]
   pull_request:
     branches: [ main ]
 
-# 2. Definieer de Job
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
@@ -29,10 +27,8 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
           
-      # Stap 4: Run de tests (of een linter/formatter)
-      - name: Run code check (Example: Run Flake8 linter)
+      # Stap 4: Run de tests (op lijn 33 van de originele code)
+      - name: Run code checks
         run: |
-          # Installeer flake8 tijdelijk voor de check
           pip install flake8
-          # Run de check. De punt (.) betekent: check de huidige map
           flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
