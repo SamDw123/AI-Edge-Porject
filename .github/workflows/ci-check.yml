@@ -1,0 +1,49 @@
+name: Continuous Integration Checks
+
+# 1. Wanneer de workflow moet draaien (Trigger)
+on:
+  push:
+    branches: [ main ] # Draai op elke push naar de 'main' branch
+  pull_request:
+    branches: [ main ] # Draai wanneer een Pull Request wordt geopend naar 'main'
+
+# 2. Definieer de Job
+jobs:
+  build-and-test:
+    # De virtuele machine die de code gaat draaien
+    runs-on: ubuntu-latest
+    
+    # De stappen die de job moet uitvoeren
+    steps:
+    
+    # Stap 1: Download de code
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    # Stap 2: Python instellen
+    - name: Set up Python 3.10
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.10'
+        
+    # Stap 3: Installeer de Python dependencies
+    - name: Install dependencies
+      run: |
+        # Upgrade pip en installeer de packages uit requirements.txt
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        
+    # Stap 4: Run de tests (of een linter/formatter)
+    - name: Run code check (Example: Run Flake8 linter)
+      run: |
+        # Je moet flake8 toevoegen aan je requirements.txt om dit te laten werken
+        # Of installeer het hier eenmalig
+        pip install flake8
+        flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+        # Voeg hier je unit tests toe als je die hebt (bijv. pytest)
+        # bijv: pytest --no-header -q
+        
+    # Stap 5: (Optioneel) Check of de applicatie kan starten
+    # Dit is alleen een voorbeeld; het starten van een Gradio app vereist meer configuratie
+    # - name: Check Python Syntax
+    #   run: python Gradio_test.py --help

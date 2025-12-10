@@ -7,3 +7,4 @@ safetensors
 gradio==4.19.2
 typing-extensions>=4.9.0
 Pillow
+flake8
