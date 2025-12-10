@@ -1,0 +1,9 @@
+numpy<2
+diffusers==0.27.2
+transformers==4.36.2
+accelerate==0.26.1
+huggingface_hub==0.21.4
+safetensors
+gradio==4.19.2
+typing-extensions>=4.9.0
+Pillow
