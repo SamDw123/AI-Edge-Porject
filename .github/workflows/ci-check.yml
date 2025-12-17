@@ -27,7 +27,6 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
           
-      # Stap 4: Run de tests (op lijn 33 van de originele code)
       - name: Run code checks
         run: |
           pip install flake8

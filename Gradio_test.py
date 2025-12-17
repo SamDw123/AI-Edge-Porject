@@ -14,7 +14,7 @@ from controlnet_aux import (
     CannyDetector,
     MidasDetector,
     NormalBaeDetector,
-    HEDdetector 
+    HEDdetector
 )
 
 # Initialisatie & Modellen
@@ -56,22 +56,20 @@ pipe.vae.enable_slicing()
 refiner.vae.enable_tiling()
 refiner.vae.enable_slicing()
 
-# Modulaire Logica
 
 def cleanup():
     if torch.cuda.is_available():
         torch.cuda.empty_cache()
     gc.collect()
 
-def process_control(image, mode, strength): 
-    # logica voor ControlNet detectors
+def process_control(image, mode, strength, canny_low, canny_high): 
     if image is None or mode == "None" or strength == 0:
         return Image.new("RGB", (1024, 1024), "black")
     
     if mode == "Pose":
         res = openpose_detector(image)
     elif mode == "Canny":
-        res = canny_detector(image, low_threshold=100, high_threshold=200) 
+        res = canny_detector(image, low_threshold=canny_low, high_threshold=canny_high) 
     elif mode == "Depth":
         res = midas_detector(image)
     elif mode == "Normal":
@@ -84,17 +82,18 @@ def process_control(image, mode, strength):
     return res.resize((1024, 1024), Image.LANCZOS)
 
 def run_modular_control(prompt, seed, steps, cfg, 
-                        img1, mode1, strength1,
-                        img2, mode2, strength2):
+                        img1, mode1, strength1, low1, high1,  
+                        img2, mode2, strength2, low2, high2): 
     
     generator = torch.Generator("cuda").manual_seed(int(seed))
     
-    ctrl1 = process_control(img1, mode1, strength1)
-    ctrl2 = process_control(img2, mode2, strength2)
+    # Geef de threshold waarden door aan process_control
+    ctrl1 = process_control(img1, mode1, strength1, low1, high1)
+    ctrl2 = process_control(img2, mode2, strength2, low2, high2)
     
     scales = [float(strength1), float(strength2)]
     
-    # Genereren met ControlNet (geeft ruwe output)
+    # Genereren met ControlNet
     image = pipe(
         prompt=prompt,
         image=[ctrl1, ctrl2],
@@ -108,24 +107,22 @@ def run_modular_control(prompt, seed, steps, cfg,
     ).images[0]
     
     # Verbeteren met Refiner
-    # De Refiner gebruikt de output van de Base Pipeline als input
     refined_image = refiner(
         prompt=prompt,
         image=image, 
-        num_inference_steps=10, # De Refiner heeft minder stappen nodig
+        num_inference_steps=10,
         generator=generator,
-        denoising_start=0.8 # Begin met denoising bij 80% van het proces (standaard voor refinement)
+        denoising_start=0.8
     ).images[0]
     
     cleanup()
-    return refined_image, ctrl1, ctrl2 # Retourneer de verfijnde afbeelding
+    return refined_image, ctrl1, ctrl2
 
 
-# Gradio UI 
 CONTROL_MODES = ["None", "Pose", "Canny", "Depth", "Normal", "Structure"]
 
 with gr.Blocks(theme=gr.themes.Soft()) as demo:
-    gr.Markdown("#SDXL Modular Multi-Control Studio")
+    gr.Markdown("# SDXL Modular Multi-Control Studio")
 
     with gr.Tab("Custom Multi-Control"):
 
@@ -146,18 +143,30 @@ with gr.Blocks(theme=gr.themes.Soft()) as demo:
                 in1 = gr.Image(label="Referentie Image", type="pil")
                 type1 = gr.Dropdown(CONTROL_MODES, value="Structure", label="Type")
                 str1 = gr.Slider(0.0, 2.0, value=1.0, label="Strength")
-                out1 = gr.Image(label="Preview 1", interactive=False)
+                
+                # Canny Sliders met uitleg
+                gr.Markdown("**Canny Instellingen (Alleen voor Canny modus):**")
+                low1 = gr.Slider(1, 255, value=100, step=1, label="Low Threshold", info="Negeert zwakke lijnen onder deze waarde (Minder Ruis).")
+                high1 = gr.Slider(1, 255, value=200, step=1, label="High Threshold", info="Pikt sterke lijnen op boven deze waarde (Structuur).")
+                
+                out1 = gr.Image(label="Preview 1 (Control Map)", interactive=False)
 
             with gr.Column(variant="panel"):
                 gr.Markdown("### Laag 2")
                 in2 = gr.Image(label="Referentie Image", type="pil")
                 type2 = gr.Dropdown(CONTROL_MODES, value="Pose", label="Type")
                 str2 = gr.Slider(0.0, 2.0, value=1.2, label="Strength")
-                out2 = gr.Image(label="Preview 2", interactive=False)
+                
+                # Canny Sliders met uitleg
+                gr.Markdown("**Canny Instellingen (Alleen voor Canny modus):**")
+                low2 = gr.Slider(1, 255, value=100, step=1, label="Low Threshold", info="Laag = Meer details/ruis.")
+                high2 = gr.Slider(1, 255, value=200, step=1, label="High Threshold", info="Hoog = Alleen harde contouren.")
+                
+                out2 = gr.Image(label="Preview 2 (Control Map)", interactive=False)
 
         run_btn.click(
             fn=run_modular_control,
-            inputs=[prompt, seed, steps, cfg, in1, type1, str1, in2, type2, str2],
+            inputs=[prompt, seed, steps, cfg, in1, type1, str1, low1, high1, in2, type2, str2, low2, high2],
             outputs=[output_img, out1, out2]
         )
         
